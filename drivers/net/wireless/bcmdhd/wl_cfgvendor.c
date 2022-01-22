@@ -702,7 +702,7 @@ static int wl_cfgvendor_hotlist_cfg(struct wiphy *wiphy,
 		GFP_KERNEL);
 
 	if (!hotlist_params) {
-		WL_ERR(("Cannot Malloc mem to parse config commands size - %d bytes \n", len));
+		WL_ERR(("Cannot Malloc mem.\n"));
 		return -ENOMEM;
 	}
 
@@ -711,10 +711,33 @@ static int wl_cfgvendor_hotlist_cfg(struct wiphy *wiphy,
 	nla_for_each_attr(iter, data, len, tmp2) {
 		type = nla_type(iter);
 		switch (type) {
+		case GSCAN_ATTRIBUTE_HOTLIST_BSSID_COUNT:
+			if (nla_len(iter) != sizeof(uint32)) {
+				WL_DBG(("type:%d length:%d not matching.\n",
+					type, nla_len(inner)));
+				err = -EINVAL;
+				goto exit;
+			}
+			hotlist_params->nbssid = (uint16)nla_get_u32(iter);
+			if ((hotlist_params->nbssid == 0) ||
+			    (hotlist_params->nbssid > PFN_SWC_MAX_NUM_APS)) {
+				WL_ERR(("nbssid:%d exceed limit.\n",
+					hotlist_params->nbssid));
+				err = -EINVAL;
+				goto exit;
+			}
+			break;
 		case GSCAN_ATTRIBUTE_HOTLIST_BSSIDS:
+			if (hotlist_params->nbssid == 0) {
+				WL_ERR(("nbssid not retrieved.\n"));
+				err = -EINVAL;
+				goto exit;
+			}
 			pbssid = hotlist_params->bssid;
 			nla_for_each_nested(outer, iter, tmp) {
 				nla_for_each_nested(inner, outer, tmp1) {
+					if (j >= hotlist_params->nbssid)
+						break;
 					type = nla_type(inner);
 
 					switch (type) {
@@ -751,13 +774,13 @@ static int wl_cfgvendor_hotlist_cfg(struct wiphy *wiphy,
 						break;
 					}
 				}
-				if (++j > PFN_SWC_MAX_NUM_APS) {
-					WL_DBG(("nbssid:%d exeed limit.\n",
-						hotlist_params->nbssid));
-					err = -EINVAL;
-					goto exit;
-				}
-				hotlist_params->nbssid = j;
+				j++;
+			}
+			if (j != hotlist_params->nbssid) {
+				WL_ERR(("bssid_cnt:%d != nbssid:%d.\n", j,
+					hotlist_params->nbssid));
+				err = -EINVAL;
+				goto exit;
 			}
 			break;
 		case GSCAN_ATTRIBUTE_HOTLIST_FLUSH:
@@ -1081,78 +1104,6 @@ static int wl_cfgvendor_set_batch_scan_cfg(struct wiphy *wiphy,
 		return err;
 	}
 
-	return err;
-}
-
-static int wl_cfgvendor_significant_change_cfg(struct wiphy *wiphy,
-	struct wireless_dev *wdev, const void  *data, int len)
-{
-	int err = 0;
-	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
-	gscan_swc_params_t *significant_params;
-	int tmp, tmp1, tmp2, type, j = 0;
-	const struct nlattr *outer, *inner, *iter;
-	uint8 flush = 0;
-	wl_pfn_significant_bssid_t *pbssid;
-
-	significant_params = (gscan_swc_params_t *) kzalloc(len, GFP_KERNEL);
-	if (!significant_params) {
-		WL_ERR(("Cannot Malloc mem to parse config commands size - %d bytes \n", len));
-		return -1;
-	}
-
-
-	nla_for_each_attr(iter, data, len, tmp2) {
-		type = nla_type(iter);
-
-		switch (type) {
-			case GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_FLUSH:
-			flush = nla_get_u8(iter);
-			break;
-			case GSCAN_ATTRIBUTE_RSSI_SAMPLE_SIZE:
-				significant_params->rssi_window = nla_get_u16(iter);
-				break;
-			case GSCAN_ATTRIBUTE_LOST_AP_SAMPLE_SIZE:
-				significant_params->lost_ap_window = nla_get_u16(iter);
-				break;
-			case GSCAN_ATTRIBUTE_MIN_BREACHING:
-				significant_params->swc_threshold = nla_get_u16(iter);
-				break;
-			case GSCAN_ATTRIBUTE_SIGNIFICANT_CHANGE_BSSIDS:
-				pbssid = significant_params->bssid_elem_list;
-				nla_for_each_nested(outer, iter, tmp) {
-					nla_for_each_nested(inner, outer, tmp1) {
-							switch (nla_type(inner)) {
-								case GSCAN_ATTRIBUTE_BSSID:
-								memcpy(&(pbssid[j].macaddr),
-								     nla_data(inner),
-								     ETHER_ADDR_LEN);
-								break;
-								case GSCAN_ATTRIBUTE_RSSI_HIGH:
-								pbssid[j].rssi_high_threshold =
-								       (int8) nla_get_u8(inner);
-								break;
-								case GSCAN_ATTRIBUTE_RSSI_LOW:
-								pbssid[j].rssi_low_threshold =
-								      (int8) nla_get_u8(inner);
-								break;
-							}
-						}
-					j++;
-				}
-				break;
-		}
-	}
-	significant_params->nbssid = j;
-
-	if (dhd_dev_pno_set_cfg_gscan(bcmcfg_to_prmry_ndev(cfg),
-	    DHD_PNO_SIGNIFICANT_SCAN_CFG_ID, significant_params, flush) < 0) {
-		WL_ERR(("Could not set GSCAN significant cfg\n"));
-		err = -EINVAL;
-		goto exit;
-	}
-exit:
-	kfree(significant_params);
 	return err;
 }
 
@@ -2105,7 +2056,7 @@ static int wl_cfgvendor_dbg_get_mem_dump(struct wiphy *wiphy,
 	int buf_len = 0;
 	void __user *user_buf = NULL;
 	const struct nlattr *iter;
-	char *mem_buf;
+	char *mem_buf = NULL;
 	struct sk_buff *skb;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 
@@ -2113,10 +2064,32 @@ static int wl_cfgvendor_dbg_get_mem_dump(struct wiphy *wiphy,
 		type = nla_type(iter);
 		switch (type) {
 			case DEBUG_ATTRIBUTE_FW_DUMP_LEN:
-				buf_len = nla_get_u32(iter);
+				/* Check if the iter is valid and
+				 * buffer length is not already initialized.
+				 */
+				if ((nla_len(iter) == sizeof(uint32)) &&
+					!buf_len) {
+					buf_len = nla_get_u32(iter);
+					if (buf_len <= 0) {
+						ret = BCME_ERROR;
+						goto exit;
+					}
+				} else {
+					ret = BCME_ERROR;
+					goto exit;
+				}
 				break;
 			case DEBUG_ATTRIBUTE_FW_DUMP_DATA:
-				user_buf = (void __user *)(unsigned long) nla_get_u64(iter);
+				if (nla_len(iter) != sizeof(uint64)) {
+					WL_ERR(("Invalid len\n"));
+					ret = BCME_ERROR;
+					goto exit;
+				}
+				user_buf = (void __user *) nla_get_u64(iter);
+				if (!user_buf) {
+					ret = BCME_ERROR;
+					goto exit;
+				}
 				break;
 			default:
 				WL_ERR(("Unknown type: %d\n", type));
@@ -2514,14 +2487,6 @@ static const struct wiphy_vendor_command wl_vendor_cmds [] = {
 		},
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
 		.doit = wl_cfgvendor_hotlist_cfg
-	},
-	{
-		{
-			.vendor_id = OUI_GOOGLE,
-			.subcmd = GSCAN_SUBCMD_SET_SIGNIFICANT_CHANGE_CONFIG
-		},
-		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
-		.doit = wl_cfgvendor_significant_change_cfg
 	},
 	{
 		{

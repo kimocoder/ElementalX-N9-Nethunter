@@ -15,9 +15,8 @@
 #include <linux/types.h>
 
 #define F2FS_SUPER_OFFSET		1024	/* byte-size offset */
-#define F2FS_MIN_LOG_SECTOR_SIZE	9	/* 9 bits for 512 bytes */
-#define F2FS_MAX_LOG_SECTOR_SIZE	12	/* 12 bits for 4096 bytes */
-#define F2FS_LOG_SECTORS_PER_BLOCK	3	/* log number for sector/blk */
+#define F2FS_LOG_SECTOR_SIZE		9	/* 9 bits for 512 byte */
+#define F2FS_LOG_SECTORS_PER_BLOCK	3	/* 4KB: F2FS_BLKSIZE */
 #define F2FS_BLKSIZE			4096	/* support only 4KB block */
 #define F2FS_MAX_EXTENSION		64	/* # of extension entries */
 #define F2FS_BLK_ALIGN(x)	(((x) + F2FS_BLKSIZE - 1) / F2FS_BLKSIZE)
@@ -267,6 +266,12 @@ struct f2fs_nat_block {
  */
 #define SIT_VBLOCK_MAP_SIZE 64
 #define SIT_ENTRY_PER_BLOCK (PAGE_CACHE_SIZE / sizeof(struct f2fs_sit_entry))
+
+/*
+ * F2FS uses 4 bytes to represent block address. As a result, supported size of
+ * disk is 16 TB and it equals to 16 * 1024 * 1024 / 2 segments.
+ */
+#define F2FS_MAX_SEGMENT       ((16 * 1024 * 1024) / 2)
 
 /*
  * Note that f2fs_sit_entry->vblocks has the following bit-field information.

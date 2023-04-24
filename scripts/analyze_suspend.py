@@ -66,14 +66,12 @@ class SystemValues:
 	htmlfile = ""
 	rtcwake = False
 	def setOutputFile(self):
-		if((self.htmlfile == "") and (self.dmesgfile != "")):
-			m = re.match(r"(?P<name>.*)_dmesg\.txt$", self.dmesgfile)
-			if(m):
-				self.htmlfile = m.group("name")+".html"
-		if((self.htmlfile == "") and (self.ftracefile != "")):
-			m = re.match(r"(?P<name>.*)_ftrace\.txt$", self.ftracefile)
-			if(m):
-				self.htmlfile = m.group("name")+".html"
+		if ((self.htmlfile == "") and (self.dmesgfile != "")):
+			if m := re.match(r"(?P<name>.*)_dmesg\.txt$", self.dmesgfile):
+				self.htmlfile = m["name"] + ".html"
+		if ((self.htmlfile == "") and (self.ftracefile != "")):
+			if m := re.match(r"(?P<name>.*)_ftrace\.txt$", self.ftracefile):
+				self.htmlfile = m["name"] + ".html"
 		if(self.htmlfile == ""):
 			self.htmlfile = "output.html"
 	def initTestOutput(self):
@@ -83,10 +81,10 @@ class SystemValues:
 		v = os.popen("cat /proc/version").read().strip()
 		kver = string.split(v)[2]
 		self.testdir = os.popen("date \"+suspend-%m%d%y-%H%M%S\"").read().strip()
-		self.teststamp = "# "+self.testdir+" "+self.prefix+" "+self.suspendmode+" "+kver
-		self.dmesgfile = self.testdir+"/"+self.prefix+"_"+self.suspendmode+"_dmesg.txt"
-		self.ftracefile = self.testdir+"/"+self.prefix+"_"+self.suspendmode+"_ftrace.txt"
-		self.htmlfile = self.testdir+"/"+self.prefix+"_"+self.suspendmode+".html"
+		self.teststamp = f"# {self.testdir} {self.prefix} {self.suspendmode} {kver}"
+		self.dmesgfile = f"{self.testdir}/{self.prefix}_{self.suspendmode}_dmesg.txt"
+		self.ftracefile = f"{self.testdir}/{self.prefix}_{self.suspendmode}_ftrace.txt"
+		self.htmlfile = f"{self.testdir}/{self.prefix}_{self.suspendmode}.html"
 		os.mkdir(self.testdir)
 
 class Data:
@@ -106,23 +104,71 @@ class Data:
 	fwSuspend = 0
 	fwResume = 0
 	def initialize(self):
-		self.dmesg = { # dmesg log data
-			'suspend_general': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "#CCFFCC", 'order': 0},
-			  'suspend_early': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "green", 'order': 1},
-			  'suspend_noirq': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "#00FFFF", 'order': 2},
-				'suspend_cpu': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "blue", 'order': 3},
-				 'resume_cpu': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "red", 'order': 4},
-			   'resume_noirq': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "orange", 'order': 5},
-			   'resume_early': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "yellow", 'order': 6},
-			 'resume_general': {'list': dict(), 'start': -1.0, 'end': -1.0,
-								'row': 0, 'color': "#FFFFCC", 'order': 7}
+		self.dmesg = {
+			'suspend_general': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "#CCFFCC",
+				'order': 0,
+			},
+			'suspend_early': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "green",
+				'order': 1,
+			},
+			'suspend_noirq': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "#00FFFF",
+				'order': 2,
+			},
+			'suspend_cpu': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "blue",
+				'order': 3,
+			},
+			'resume_cpu': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "red",
+				'order': 4,
+			},
+			'resume_noirq': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "orange",
+				'order': 5,
+			},
+			'resume_early': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "yellow",
+				'order': 6,
+			},
+			'resume_general': {
+				'list': {},
+				'start': -1.0,
+				'end': -1.0,
+				'row': 0,
+				'color': "#FFFFCC",
+				'order': 7,
+			},
 		}
 		self.phases = self.sortedPhases()
 	def normalizeTime(self):
@@ -154,19 +200,26 @@ class Data:
 		if self.fwValid:
 			fws = -self.fwSuspend / 1000000000.0
 			fwr = self.fwResume / 1000000000.0
-			list = dict()
 			self.id += 1
 			devid = "dc%d" % self.id
-			list["firmware-suspend"] = \
-				{'start': fws, 'end': 0, 'pid': 0, 'par': "",
-				'length': -fws, 'row': 0, 'id': devid };
+			list = {
+				"firmware-suspend": {
+					'start': fws,
+					'end': 0,
+					'pid': 0,
+					'par': "",
+					'length': -fws,
+					'row': 0,
+					'id': devid,
+				}
+			}
 			self.id += 1
 			devid = "dc%d" % self.id
 			list["firmware-resume"] = \
-				{'start': 0, 'end': fwr, 'pid': 0, 'par': "",
+					{'start': 0, 'end': fwr, 'pid': 0, 'par': "",
 				'length': fwr, 'row': 0, 'id': devid };
 			self.dmesg['BIOS'] = \
-				{'list': list, 'start': fws, 'end': fwr,
+					{'list': list, 'start': fws, 'end': fwr,
 				'row': 0, 'color': "purple", 'order': 4}
 			self.dmesg['resume_cpu']['order'] += 1
 			self.dmesg['resume_noirq']['order'] += 1
@@ -182,22 +235,19 @@ class Data:
 		return sorted(self.dmesg, key=self.dmesgSortVal)
 	def sortedDevices(self, phase):
 		list = self.dmesg[phase]['list']
-		slist = []
-		tmp = dict()
+		tmp = {}
 		for devname in list:
 			dev = list[devname]
 			tmp[dev['start']] = devname
-		for t in sorted(tmp):
-			slist.append(tmp[t])
-		return slist
+		return [tmp[t] for t in sorted(tmp)]
 	def fixupInitcalls(self, phase, end):
 		# if any calls never returned, clip them at system resume end
 		phaselist = self.dmesg[phase]['list']
 		for devname in phaselist:
 			dev = phaselist[devname]
-			if(dev['end'] < 0):
+			if (dev['end'] < 0):
 				dev['end'] = end
-				self.vprint("%s (%s): callback didn't return" % (devname, phase))
+				self.vprint(f"{devname} ({phase}): callback didn't return")
 	def fixupInitcallsThatDidntReturn(self):
 		# if any calls never returned, clip them at system resume end
 		for phase in self.phases:
@@ -208,9 +258,7 @@ class Data:
 		self.id += 1
 		devid = "dc%d" % self.id
 		list = self.dmesg[phase]['list']
-		length = -1.0
-		if(start >= 0 and end >= 0):
-			length = end - start
+		length = end - start if (start >= 0 and end >= 0) else -1.0
 		list[name] = {'start': start, 'end': end, 'pid': pid, 'par': parent,
 					  'length': length, 'row': 0, 'id': devid }
 	def deviceIDs(self, devlist, phase):
@@ -219,9 +267,7 @@ class Data:
 			if(p[0] != phase[0]):
 				continue
 			list = data.dmesg[p]['list']
-			for devname in list:
-				if devname in devlist:
-					idlist.append(list[devname]['id'])
+			idlist.extend(list[devname]['id'] for devname in list if devname in devlist)
 		return idlist
 	def deviceParentID(self, devname, phase):
 		pdev = ""
@@ -245,9 +291,7 @@ class Data:
 			if(p[0] != phase[0]):
 				continue
 			list = data.dmesg[p]['list']
-			for child in list:
-				if(list[child]['par'] == devname):
-					devlist.append(child)
+			devlist.extend(child for child in list if (list[child]['par'] == devname))
 		return self.deviceIDs(devlist, phase)
 
 class FTraceLine:
@@ -260,10 +304,8 @@ class FTraceLine:
 	name = ""
 	def __init__(self, t, m, d):
 		self.time = float(t)
-		# check to see if this is a trace event
-		em = re.match(r"^ *\/\* *(?P<msg>.*) \*\/ *$", m)
-		if(em):
-			self.name = em.group("msg")
+		if em := re.match(r"^ *\/\* *(?P<msg>.*) \*\/ *$", m):
+			self.name = em["msg"]
 			self.fevent = True
 			return
 		# convert the duration to seconds
@@ -273,31 +315,24 @@ class FTraceLine:
 		match = re.match(r"^(?P<d> *)(?P<o>.*)$", m)
 		if(not match):
 			return
-		self.depth = self.getDepth(match.group('d'))
-		m = match.group('o')
+		self.depth = self.getDepth(match['d'])
+		m = match['o']
 		# function return
-		if(m[0] == '}'):
+		if (m[0] == '}'):
 			self.freturn = True
-			if(len(m) > 1):
-				# includes comment with function name
-				match = re.match(r"^} *\/\* *(?P<n>.*) *\*\/$", m)
-				if(match):
-					self.name = match.group('n')
-		# function call
+			if (len(m) > 1):
+				if match := re.match(r"^} *\/\* *(?P<n>.*) *\*\/$", m):
+					self.name = match['n']
 		else:
 			self.fcall = True
 			# function call with children
-			if(m[-1] == '{'):
-				match = re.match(r"^(?P<n>.*) *\(.*", m)
-				if(match):
-					self.name = match.group('n')
-			# function call with no children (leaf)
-			elif(m[-1] == ';'):
+			if (m[-1] == '{'):
+				if match := re.match(r"^(?P<n>.*) *\(.*", m):
+					self.name = match['n']
+			elif (m[-1] == ';'):
 				self.freturn = True
-				match = re.match(r"^(?P<n>.*) *\(.*", m)
-				if(match):
-					self.name = match.group('n')
-			# something else (possibly a trace marker)
+				if match := re.match(r"^(?P<n>.*) *\(.*", m):
+					self.name = match['n']
 			else:
 				self.name = m
 	def getDepth(self, str):
@@ -332,21 +367,20 @@ class FTraceCallGraph:
 			return True
 		if(self.invalid):
 			return False
-		if(len(self.list) >= 1000000 or self.depth < 0):
-		   first = self.list[0]
-		   self.list = []
-		   self.list.append(first)
-		   self.invalid = True
-		   id = "task %s cpu %s" % (match.group("pid"), match.group("cpu"))
-		   window = "(%f - %f)" % (self.start, line.time)
-		   data.vprint("Too much data for "+id+" "+window+", ignoring this callback")
-		   return False
+		if (len(self.list) >= 1000000 or self.depth < 0):
+			first = self.list[0]
+			self.list = [first]
+			self.invalid = True
+			id = f'task {match.group("pid")} cpu {match.group("cpu")}'
+			window = "(%f - %f)" % (self.start, line.time)
+			data.vprint(f"Too much data for {id} {window}, ignoring this callback")
+			return False
 		self.list.append(line)
 		if(self.start < 0):
 			self.start = line.time
 		return False
 	def sanityCheck(self):
-		stack = dict()
+		stack = {}
 		cnt = 0
 		for l in self.list:
 			if(l.fcall and not l.freturn):
@@ -359,11 +393,9 @@ class FTraceCallGraph:
 				stack[l.depth] = 0
 				l.length = 0
 				cnt -= 1
-		if(cnt == 0):
-			return True
-		return False
+		return cnt == 0
 	def debugPrint(self, filename):
-		if(filename == "stdout"):
+		if (filename == "stdout"):
 			print("[%f - %f]") % (self.start, self.end)
 			for l in self.list:
 				if(l.freturn and l.fcall):
@@ -374,16 +406,15 @@ class FTraceCallGraph:
 					print("%f (%02d): %s() { (%.3f us)" % (l.time, l.depth, l.name, l.length*1000000))
 			print(" ")
 		else:
-			fp = open(filename, 'w')
-			print(filename)
-			for l in self.list:
-				if(l.freturn and l.fcall):
-					fp.write("%f (%02d): %s(); (%.3f us)\n" % (l.time, l.depth, l.name, l.length*1000000))
-				elif(l.freturn):
-					fp.write("%f (%02d): %s} (%.3f us)\n" % (l.time, l.depth, l.name, l.length*1000000))
-				else:
-					fp.write("%f (%02d): %s() { (%.3f us)\n" % (l.time, l.depth, l.name, l.length*1000000))
-			fp.close()
+			with open(filename, 'w') as fp:
+				print(filename)
+				for l in self.list:
+					if(l.freturn and l.fcall):
+						fp.write("%f (%02d): %s(); (%.3f us)\n" % (l.time, l.depth, l.name, l.length*1000000))
+					elif(l.freturn):
+						fp.write("%f (%02d): %s} (%.3f us)\n" % (l.time, l.depth, l.name, l.length*1000000))
+					else:
+						fp.write("%f (%02d): %s() { (%.3f us)\n" % (l.time, l.depth, l.name, l.length*1000000))
 
 class Timeline:
 	html = {}
@@ -403,8 +434,7 @@ class Timeline:
 		self.scaleH = 100.0/float(self.maxrows)
 		self.height = self.maxrows*self.row_height_pixels
 		r = float(self.maxrows - 1)
-		if(r < 1.0):
-			r = 1.0
+		r = max(r, 1.0)
 		self.rowH = (100.0 - self.scaleH)/r
 
 # -- global objects --
@@ -422,22 +452,24 @@ def initFtrace():
 
 	print("INITIALIZING FTRACE...")
 	# turn trace off
-	os.system("echo 0 > "+sysvals.tpath+"tracing_on")
+	os.system(f"echo 0 > {sysvals.tpath}tracing_on")
 	# set the trace clock to global
-	os.system("echo global > "+sysvals.tpath+"trace_clock")
+	os.system(f"echo global > {sysvals.tpath}trace_clock")
 	# set trace buffer to a huge value
-	os.system("echo nop > "+sysvals.tpath+"current_tracer")
-	os.system("echo 100000 > "+sysvals.tpath+"buffer_size_kb")
+	os.system(f"echo nop > {sysvals.tpath}current_tracer")
+	os.system(f"echo 100000 > {sysvals.tpath}buffer_size_kb")
 	# clear the trace buffer
 	os.system("echo \"\" > "+sysvals.tpath+"trace")
 	# set trace type
-	os.system("echo function_graph > "+sysvals.tpath+"current_tracer")
+	os.system(f"echo function_graph > {sysvals.tpath}current_tracer")
 	os.system("echo \"\" > "+sysvals.tpath+"set_ftrace_filter")
 	# set trace format options
-	os.system("echo funcgraph-abstime > "+sysvals.tpath+"trace_options")
-	os.system("echo funcgraph-proc > "+sysvals.tpath+"trace_options")
+	os.system(f"echo funcgraph-abstime > {sysvals.tpath}trace_options")
+	os.system(f"echo funcgraph-proc > {sysvals.tpath}trace_options")
 	# focus only on device suspend and resume
-	os.system("cat "+sysvals.tpath+"available_filter_functions | grep dpm_run_callback > "+sysvals.tpath+"set_graph_function")
+	os.system(
+		f"cat {sysvals.tpath}available_filter_functions | grep dpm_run_callback > {sysvals.tpath}set_graph_function"
+	)
 
 # Function: verifyFtrace
 # Description:
@@ -447,25 +479,26 @@ def verifyFtrace():
 	files = ["available_filter_functions", "buffer_size_kb",
 			 "current_tracer", "set_ftrace_filter",
 			 "trace", "trace_marker"]
-	for f in files:
-		if(os.path.exists(sysvals.tpath+f) == False):
-			return False
-	return True
+	return all(os.path.exists(sysvals.tpath+f) != False for f in files)
 
 def parseStamp(line):
 	global data, sysvals
 	stampfmt = r"# suspend-(?P<m>[0-9]{2})(?P<d>[0-9]{2})(?P<y>[0-9]{2})-"+\
 				"(?P<H>[0-9]{2})(?P<M>[0-9]{2})(?P<S>[0-9]{2})"+\
 				" (?P<host>.*) (?P<mode>.*) (?P<kernel>.*)$"
-	m = re.match(stampfmt, line)
-	if(m):
-		dt = datetime.datetime(int(m.group("y"))+2000, int(m.group("m")),
-			int(m.group("d")), int(m.group("H")), int(m.group("M")),
-			int(m.group("S")))
+	if m := re.match(stampfmt, line):
+		dt = datetime.datetime(
+			int(m["y"]) + 2000,
+			int(m["m"]),
+			int(m["d"]),
+			int(m["H"]),
+			int(m["M"]),
+			int(m["S"]),
+		)
 		data.stamp['time'] = dt.strftime("%B %d %Y, %I:%M:%S %p")
-		data.stamp['host'] = m.group("host")
-		data.stamp['mode'] = m.group("mode")
-		data.stamp['kernel'] = m.group("kernel")
+		data.stamp['host'] = m["host"]
+		data.stamp['mode'] = m["mode"]
+		data.stamp['kernel'] = m["kernel"]
 		sysvals.suspendmode = data.stamp['mode']
 
 # Function: analyzeTraceLog
@@ -485,70 +518,66 @@ def analyzeTraceLog():
 	ftrace_line_fmt = r"^ *(?P<time>[0-9\.]*) *\| *(?P<cpu>[0-9]*)\)"+\
 					   " *(?P<proc>.*)-(?P<pid>[0-9]*) *\|"+\
 					   "[ +!]*(?P<dur>[0-9\.]*) .*\|  (?P<msg>.*)"
-	ftemp = dict()
+	ftemp = {}
 	inthepipe = False
-	tf = open(sysvals.ftracefile, 'r')
-	count = 0
-	for line in tf:
-		count = count + 1
-		# grab the time stamp if it's valid
-		if(count == 1):
-			parseStamp(line)
-			continue
-		# parse only valid lines
-		m = re.match(ftrace_line_fmt, line)
-		if(not m):
-			continue
-		m_time = m.group("time")
-		m_pid = m.group("pid")
-		m_msg = m.group("msg")
-		m_dur = m.group("dur")
-		if(m_time and m_pid and m_msg):
+	with open(sysvals.ftracefile, 'r') as tf:
+		count = 0
+		for line in tf:
+			count = count + 1
+			# grab the time stamp if it's valid
+			if(count == 1):
+				parseStamp(line)
+				continue
+			# parse only valid lines
+			m = re.match(ftrace_line_fmt, line)
+			if(not m):
+				continue
+			m_time = m["time"]
+			m_pid = m["pid"]
+			m_msg = m["msg"]
+			m_dur = m["dur"]
+			if not m_time or not m_pid or not m_msg:
+				continue
 			t = FTraceLine(m_time, m_msg, m_dur)
-			pid = int(m_pid)
-		else:
-			continue
-		# the line should be a call, return, or event
-		if(not t.fcall and not t.freturn and not t.fevent):
-			continue
-		# only parse the ftrace data during suspend/resume
-		if(not inthepipe):
-			# look for the suspend start marker
-			if(t.fevent):
-				if(t.name == "SUSPEND START"):
+			# the line should be a call, return, or event
+			if(not t.fcall and not t.freturn and not t.fevent):
+				continue
+					# only parse the ftrace data during suspend/resume
+			if (not inthepipe):
+							# look for the suspend start marker
+				if t.fevent and (t.name == "SUSPEND START"):
 					data.vprint("SUSPEND START %f %s:%d" % (t.time, sysvals.ftracefile, count))
 					inthepipe = True
-				continue
-		else:
-			# look for the resume end marker
-			if(t.fevent):
-				if(t.name == "RESUME COMPLETE"):
-					data.vprint("RESUME COMPLETE %f %s:%d" % (t.time, sysvals.ftracefile, count))
-					inthepipe = False
-					break
-				continue
-			# create a callgraph object for the data
-			if(pid not in ftemp):
-				ftemp[pid] = FTraceCallGraph()
-			# when the call is finished, see which device matches it
-			if(ftemp[pid].addLine(t, m)):
-				if(not ftemp[pid].sanityCheck()):
-					id = "task %s cpu %s" % (pid, m.group("cpu"))
-					data.vprint("Sanity check failed for "+id+", ignoring this callback")
-					continue
-				callstart = ftemp[pid].start
-				callend = ftemp[pid].end
-				for p in data.phases:
-					if(data.dmesg[p]['start'] <= callstart and callstart <= data.dmesg[p]['end']):
-						list = data.dmesg[p]['list']
-						for devname in list:
-							dev = list[devname]
-							if(pid == dev['pid'] and callstart <= dev['start'] and callend >= dev['end']):
-								data.vprint("%15s [%f - %f] %s(%d)" % (p, callstart, callend, devname, pid))
-								dev['ftrace'] = ftemp[pid]
+			else:
+				# look for the resume end marker
+				if(t.fevent):
+					if(t.name == "RESUME COMPLETE"):
+						data.vprint("RESUME COMPLETE %f %s:%d" % (t.time, sysvals.ftracefile, count))
+						inthepipe = False
 						break
-				ftemp[pid] = FTraceCallGraph()
-	tf.close()
+					continue
+				pid = int(m_pid)
+				# create a callgraph object for the data
+				if(pid not in ftemp):
+					ftemp[pid] = FTraceCallGraph()
+							# when the call is finished, see which device matches it
+				if (ftemp[pid].addLine(t, m)):
+					if (not ftemp[pid].sanityCheck()):
+						id = f'task {pid} cpu {m["cpu"]}'
+						data.vprint(f"Sanity check failed for {id}, ignoring this callback")
+						continue
+					callstart = ftemp[pid].start
+					callend = ftemp[pid].end
+					for p in data.phases:
+						if data.dmesg[p]['start'] <= callstart <= data.dmesg[p]['end']:
+							list = data.dmesg[p]['list']
+							for devname in list:
+								dev = list[devname]
+								if(pid == dev['pid'] and callstart <= dev['start'] and callend >= dev['end']):
+									data.vprint("%15s [%f - %f] %s(%d)" % (p, callstart, callend, devname, pid))
+									dev['ftrace'] = ftemp[pid]
+							break
+					ftemp[pid] = FTraceCallGraph()
 
 # Function: sortKernelLog
 # Description:
@@ -557,31 +586,29 @@ def analyzeTraceLog():
 #	 could accidentally end up in the wrong phase
 def sortKernelLog():
 	global sysvals, data
-	lf = open(sysvals.dmesgfile, 'r')
-	dmesglist = []
-	count = 0
-	for line in lf:
-		line = line.replace("\r\n", "")
-		if(count == 0):
-			parseStamp(line)
-		elif(count == 1):
-			m = re.match(r"# fwsuspend (?P<s>[0-9]*) fwresume (?P<r>[0-9]*)$", line)
-			if(m):
-				data.fwSuspend = int(m.group("s"))
-				data.fwResume = int(m.group("r"))
-				if(data.fwSuspend > 0 or data.fwResume > 0):
-					data.fwValid = True
-		if(re.match(r".*(\[ *)(?P<ktime>[0-9\.]*)(\]) (?P<msg>.*)", line)):
-			dmesglist.append(line)
-		count += 1
-	lf.close()
+	with open(sysvals.dmesgfile, 'r') as lf:
+		dmesglist = []
+		for count, line in enumerate(lf):
+			line = line.replace("\r\n", "")
+			if count == 0:
+				parseStamp(line)
+			elif count == 1:
+				if m := re.match(
+					r"# fwsuspend (?P<s>[0-9]*) fwresume (?P<r>[0-9]*)$", line
+				):
+					data.fwSuspend = int(m["s"])
+					data.fwResume = int(m["r"])
+					if(data.fwSuspend > 0 or data.fwResume > 0):
+						data.fwValid = True
+			if(re.match(r".*(\[ *)(?P<ktime>[0-9\.]*)(\]) (?P<msg>.*)", line)):
+				dmesglist.append(line)
 	last = ""
 
 	# fix lines with the same time stamp and function with the call and return swapped
 	for line in dmesglist:
 		mc = re.match(r".*(\[ *)(?P<t>[0-9\.]*)(\]) calling  (?P<f>.*)\+ @ .*, parent: .*", line)
 		mr = re.match(r".*(\[ *)(?P<t>[0-9\.]*)(\]) call (?P<f>.*)\+ returned .* after (?P<dt>.*) usecs", last)
-		if(mc and mr and (mc.group("t") == mr.group("t")) and (mc.group("f") == mr.group("f"))):
+		if mc and mr and mc["t"] == mr["t"] and mc["f"] == mr["f"]:
 			i = dmesglist.index(last)
 			j = dmesglist.index(line)
 			dmesglist[i] = line
@@ -774,24 +801,24 @@ def setTimelineRows(list, sortedkeys):
 
 	# clear all rows and set them to undefined
 	remaining = len(list)
-	rowdata = dict()
+	rowdata = {}
 	row = 0
 	for item in list:
 		list[item]['row'] = -1
 
 	# try to pack each row with as many ranges as possible
-	while(remaining > 0):
+	while (remaining > 0):
 		if(row not in rowdata):
 			rowdata[row] = []
 		for item in sortedkeys:
-			if(list[item]['row'] < 0):
+			if (list[item]['row'] < 0):
 				s = list[item]['start']
 				e = list[item]['end']
 				valid = True
 				for ritem in rowdata[row]:
 					rs = ritem['start']
 					re = ritem['end']
-					if(not (((s <= rs) and (e <= rs)) or ((s >= re) and (e >= re)))):
+					if (s > rs or e > rs) and (s < re or e < re):
 						valid = False
 						break
 				if(valid):
@@ -815,18 +842,13 @@ def createTimeScale(t0, tMax, tSuspended):
 
 	# set scale for timeline
 	tTotal = tMax - t0
-	tS = 0.1
 	if(tTotal <= 0):
 		return output
-	if(tTotal > 4):
-		tS = 1
-	if(tSuspended < 0):
+	tS = 1 if (tTotal > 4) else 0.1
+	if (tSuspended < 0):
 		for i in range(int(tTotal/tS)+1):
 			pos = "%0.3f" % (100 - ((float(i)*tS*100)/tTotal))
-			if(i > 0):
-				val = "%0.f" % (float(i)*tS*1000)
-			else:
-				val = ""
+			val = "%0.f" % (float(i)*tS*1000) if (i > 0) else ""
 			output += timescale.format(pos, val)
 	else:
 		tSuspend = tSuspended - t0

@@ -30,8 +30,8 @@ class DataCursor(object):
         if not cbook.iterable(artists):
             artists = [artists]
         self.artists = artists
-        self.axes = tuple(set(art.axes for art in self.artists))
-        self.figures = tuple(set(ax.figure for ax in self.axes))
+        self.axes = tuple({art.axes for art in self.artists})
+        self.figures = tuple({ax.figure for ax in self.axes})
 
         self.annotations = {}
         for ax in self.axes:

@@ -189,7 +189,7 @@ class Device(object):
         return self.name
 
     def __repr__(self):
-        return "<dev: %s>" % self.name
+        return f"<dev: {self.name}>"
 
     @property
     def max_allocated(self):

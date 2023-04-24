@@ -54,10 +54,7 @@ class Trace(object):
 
     def show(self):
         """Shuffle events around, build plots, and show them"""
-        if self._args.max_plots:
-            evs = self.merge_events()
-        else:
-            evs = self.events
+        evs = self.merge_events() if self._args.max_plots else self.events
         series, devlist = self.unload(evs)
         if not self._args.no_plots:
             self.plot(series, devlist)
@@ -110,7 +107,7 @@ class Trace(object):
         series ends up as [([time0], [data0]), ([time1], [data1]), ...]
         """
         # ([x], [y]) for matplotlib
-        series = [([], []) for x in self.devlist]
+        series = [([], []) for _ in self.devlist]
         devidx = dict([(d, i) for i, d in enumerate(self.devlist)])
 
         for event in events:
@@ -149,7 +146,7 @@ class Trace(object):
         """Get the trace data from a database file, if one exists"""
         has = self._cache_hash(self._args.filename)
         try:
-            cache = open("trace." + has)
+            cache = open(f"trace.{has}")
         except IOError:
             pass
         else:
@@ -160,7 +157,7 @@ class Trace(object):
     def save_cache(self):
         """Store the raw trace data to a database"""
         data = self._save_cache()
-        fh = open("trace." + self._cache_hash(self._args.filename), "w")
+        fh = open(f"trace.{self._cache_hash(self._args.filename)}", "w")
         pickle.dump(data, fh)
 
     def _save_cache(self):
